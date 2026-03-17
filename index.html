@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Soufi Print Accounting</title>
+<style>
+:root{
+  --blue:#0b2d6b; --blue2:#173f8a; --light:#f3f6fb; --white:#fff; --text:#15243a;
+  --muted:#5d6b82; --border:#d9e1ef; --danger:#c0392b; --ok:#1f8a4d; --warn:#c98b12;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Tahoma,Arial,sans-serif;background:linear-gradient(180deg,#0b2d6b,#163c84);color:var(--text)}
+.app{max-width:1500px;margin:0 auto;padding:18px}
+.header{display:flex;justify-content:space-between;align-items:center;gap:16px;background:var(--blue);padding:18px 22px;border-radius:18px 18px 0 0;color:#fff;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.head-right{display:flex;align-items:center;gap:16px}
+.logo{width:92px;height:92px;object-fit:contain;background:#fff;border-radius:16px;padding:6px}
+.title h1{margin:0;font-size:40px}
+.title p{margin:6px 0 0;font-size:17px}
+.savebar{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.panel{background:var(--light);min-height:calc(100vh - 140px);border-radius:0 0 18px 18px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.tab{border:none;background:#dfe7f7;color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:bold}
+.tab.active{background:var(--blue2);color:#fff}
+.view{display:none}.view.active{display:block}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:18px;text-align:center}
+.card h3{margin:0 0 8px;font-size:18px}
+.card .value{font-size:28px;font-weight:bold;color:var(--blue)}
+.section{background:#fff;border:1px solid var(--border);border-radius:16px;padding:16px;margin-top:14px}
+.section h2{margin:0 0 12px;font-size:20px;color:var(--blue)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.field label{display:block;font-weight:bold;margin-bottom:6px}
+.field input,.field select,.field textarea{width:100%;padding:10px;border:1px solid #bcc9de;border-radius:10px;background:#fff;font-size:14px}
+.field textarea{min-height:78px;resize:vertical}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+button,.filebtn{border:none;padding:10px 14px;border-radius:10px;font-weight:bold;cursor:pointer;font-family:inherit}
+.primary{background:var(--blue2);color:#fff}.secondary{background:#e6edf8;color:var(--text)}.danger{background:var(--danger);color:#fff}.success{background:var(--ok);color:#fff}.warn{background:var(--warn);color:#fff}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden}
+th,td{padding:10px;border-bottom:1px solid #e7edf7;text-align:center;font-size:14px;vertical-align:top}
+th{background:#edf2fb}
+tr.selected{background:#dbe6ff}
+.dual{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.status{padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2)}
+input[type=file]:not(#iImage){display:none}
+.upload-btn{display:inline-block;background:#e6edf8;color:#15243a;padding:10px 14px;border-radius:10px;font-weight:bold;cursor:pointer;border:1px solid #bcc9de}
+@media (max-width:980px){.dual{grid-template-columns:1fr}}
+@media print{
+  body{background:#fff}
+  .header,.tabs,.btns,.savebar{display:none !important}
+  .panel{box-shadow:none;padding:0}
+  .view{display:block !important}
+  .section{break-inside:avoid}
+}
+.thumb{width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid #d9e1ef;background:#fff}.img-preview{width:88px;height:88px;object-fit:cover;border-radius:12px;border:1px solid #d9e1ef;background:#fff;display:block}.muted-sm{font-size:12px;color:#666}
+</style>
+</head>
+<body>
+
+<div id="appRoot" class="app">
+  <div class="header">
+    <div class="head-right">
+      <img class="logo" src="logo.png" alt="logo" onerror="this.style.display='none'">
+      <div class="title">
+        <h1>Soufi Print Accounting</h1>
+        <p>نسخة نهائية محدثة — بدون تسجيل دخول</p>
+      </div>
+    </div>
+    <div class="savebar">
+      <button class="warn" id="copyBtn">نسخ البيانات</button>
+      <button class="secondary" id="pasteBtn">لصق البيانات</button>
+      <button class="secondary" id="exportBtn">تصدير نسخة احتياطية</button>
+      <label class="filebtn primary" for="importFile">استيراد نسخة</label>
+      <input type="file" id="importFile" accept=".json">
+      <button class="success" id="saveNow">حفظ الآن</button>
+      <div class="status" id="saveStatus">تم حفظ البيانات</div>
+      <button class="primary" onclick="window.print()">طباعة</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="tabs">
+      <button class="tab active" data-view="dashboard">لوحة التحكم</button>
+      <button class="tab" data-view="inventory">الأصناف والمخزون</button>
+      <button class="tab" data-view="sales">المبيعات</button>
+      <button class="tab" data-view="profits">تقارير الأرباح</button>
+      <button class="tab" data-view="branches">الفروع والمدخول</button>
+      <button class="tab" data-view="expenses">المصاريف</button>
+      <button class="tab" data-view="people">مصروف الأشخاص</button>
+      <button class="tab" data-view="other">حسابات أخرى</button>
+      <button class="tab" data-view="salaries">الرواتب</button>
+      <button class="tab" data-view="settings">لوحة الإعدادات</button>
+      <button class="tab" data-view="tools">أدوات</button>
+    </div>
+
+    <section id="dashboard" class="view active">
+      <div class="cards">
+        <div class="card"><h3>إجمالي المبيعات</h3><div class="value" id="dbSales">0.00</div></div>
+        <div class="card"><h3>إجمالي تكلفة البضاعة المباعة</h3><div class="value" id="dbCogs">0.00</div></div>
+        <div class="card"><h3>إجمالي الربح قبل المصاريف</h3><div class="value" id="dbGross">0.00</div></div>
+        <div class="card"><h3>إجمالي المصاريف</h3><div class="value" id="dbExpenses">0.00</div></div>
+        <div class="card"><h3>الربح الصافي</h3><div class="value" id="dbNet">0.00</div></div>
+        <div class="card"><h3>عدد الأصناف</h3><div class="value" id="dbProducts">0</div></div>
+        <div class="card"><h3>عدد عمليات البيع</h3><div class="value" id="dbSalesCount">0</div></div>
+        <div class="card"><h3>إجمالي القطع بالمخزون</h3><div class="value" id="dbStock">0</div></div>
+      </div>
+      <div class="section">
+        <h2>ملخص سريع</h2>
+        <div class="dual">
+          <div><table><thead><tr><th>الفرع</th><th>المبيعات</th><th>المصاريف</th><th>الصافي</th></tr></thead><tbody id="branchSummaryBody"></tbody></table></div>
+          <div><table><thead><tr><th>البند</th><th>المجموع</th></tr></thead><tbody id="quickSummaryBody"></tbody></table></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="inventory" class="view"><div class="section">
+      <h2>إضافة / تعديل صنف</h2>
+      <div class="grid">
+        <div class="field"><label>اسم الصنف</label><input id="iName"></div>
+        <div class="field"><label>رأس مال القطعة</label><input id="iCost" type="number" step="0.01"></div>
+        <div class="field"><label>سعر المفرق</label><input id="iRetail" type="number" step="0.01"></div>
+        <div class="field"><label>سعر الجملة</label><input id="iWholesale" type="number" step="0.01"></div>
+        <div class="field"><label>المخزون الكلي</label><input id="iQty" type="number" step="1"></div>
+        <div class="field"><label>المقاسات</label><input id="iSizes" placeholder="S,M,L"></div>
+        
+<div class="field">
+  <label>صورة المنتج</label>
+  <input id="iImage" type="file" accept="image/*">
+  <label for="iImage" class="upload-btn">اختيار صورة</label>
+  <div id="iImageName" class="muted-sm" style="margin-top:6px">لم يتم اختيار صورة</div>
+  <img id="iImagePreview" class="img-preview" style="margin-top:8px;display:none" alt="معاينة">
+  <div class="muted-sm">بعد اختيار الصورة اضغط إضافة أو تعديل ليتم حفظها مع المنتج</div>
+</div>
+        <div class="field" style="grid-column:span 2"><label>ملاحظات</label><textarea id="iNotes"></textarea></div>
+      </div>
+      <div class="grid">
+        <div class="field" style="grid-column:span 2"><label>بحث عن صنف</label><input id="inventorySearch" placeholder="اكتب اسم الصنف بالعربي أو الإنجليزي"></div>
+      </div>
+      <div class="btns">
+        <button class="primary" id="addItem">إضافة</button>
+        <button class="secondary" id="updateItem">تعديل</button>
+        <button class="danger" id="deleteItem">حذف المحدد</button>
+      </div>
+      <div class="status" id="inventoryValue">القيمة الإجمالية للمخزون: 0.00</div>
+      <table><thead><tr><th>#</th><th>الصورة</th><th>اسم الصنف</th><th>رأس المال</th><th>مفرق</th><th>جملة</th><th>المقاسات</th><th>الكمية</th><th>تم بيع</th><th>المتبقي</th></tr></thead><tbody id="inventoryBody"></tbody></table>
+    </div></section>
+
+    <section id="sales" class="view"><div class="section">
+      <h2>المبيعات</h2>
+      <div class="grid">
+        <div class="field"><label>التاريخ</label><input id="sDate" type="date"></div>
+        <div class="field"><label>الفرع</label><select id="sBranch"><option value="ابي سمراء">أبي سمراء</option><option value="الجميزات">الجميزات</option></select></div>
+        <div class="field"><label>الصنف</label><select id="sProduct"></select></div>
+        <div class="field"><label>نوع البيع</label><select id="sType"><option value="مفرق">مفرق</option><option value="جملة">جملة</option><option value="مخصص">مخصص</option></select></div>
+        <div class="field"><label>الكمية</label><input id="sQty" type="number" step="1"></div>
+        <div class="field"><label>سعر الوحدة</label><input id="sUnit" type="number" step="0.01"></div>
+        <div class="field"><label>اسم الزبون</label><input id="sCustomer"></div>
+        <div class="field" style="grid-column:span 2"><label>ملاحظات</label><input id="sNotes"></div>
+      </div>
+      <div class="grid">
+        <div class="field" style="grid-column:span 2"><label>بحث عن صنف في المدخول/المبيعات</label><input id="salesSearch" placeholder="اكتب اسم الصنف بالعربي أو الإنجليزي"></div>
+      </div>
+      <div class="btns"><button class="primary" id="addSale">تسجيل بيع</button><button class="danger" id="deleteSale">حذف البيع المحدد</button></div>
+      <div class="status" id="salesTotal">إجمالي المبيعات: 0.00</div>
+      <table><thead><tr><th>#</th><th>الصورة</th><th>التاريخ</th><th>الفرع</th><th>الصنف</th><th>النوع</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody id="salesBody"></tbody></table>
+    </div></section>
+
+    <section id="profits" class="view"><div class="section">
+      <h2>تقارير الأرباح المفصلة</h2>
+      <div class="dual">
+        <div><table><thead><tr><th>الفترة</th><th>المبيعات</th><th>التكلفة</th><th>الربح</th></tr></thead><tbody id="profitPeriodBody"></tbody></table></div>
+        <div><table><thead><tr><th>الفرع</th><th>المبيعات</th><th>التكلفة</th><th>المصاريف</th><th>الصافي</th></tr></thead><tbody id="profitBranchBody"></tbody></table></div>
+      </div>
+      <div class="section"><h2>أرباح الأصناف</h2><table><thead><tr><th>الصنف</th><th>عدد المبيع</th><th>المبيعات</th><th>التكلفة</th><th>الربح</th></tr></thead><tbody id="profitProductBody"></tbody></table></div>
+    </div></section>
+
+    <section id="branches" class="view"><div class="section">
+      <h2>الفروع والمدخول</h2>
+      <div class="dual">
+        <div><h2>أبي سمراء</h2><table><thead><tr><th>الفترة</th><th>المجموع</th></tr></thead><tbody id="abiIncomeBody"></tbody></table></div>
+        <div><h2>الجميزات</h2><table><thead><tr><th>الفترة</th><th>المجموع</th></tr></thead><tbody id="jamIncomeBody"></tbody></table></div>
+      </div>
+    </div></section>
+
+    <section id="expenses" class="view"><div class="section">
+      <h2>المصاريف</h2>
+      <div class="grid">
+        <div class="field"><label>التاريخ</label><input id="eDate" type="date"></div>
+        <div class="field"><label>نوع المصروف</label><select id="eType"><option value="فرع أبي سمراء">فرع أبي سمراء</option><option value="فرع الجميزات">فرع الجميزات</option><option value="سيارات">سيارات</option><option value="شراء بضاعة">شراء بضاعة</option><option value="مولد كهرباء">مولد كهرباء</option><option value="مازوت">مازوت</option><option value="أخرى">أخرى</option></select></div>
+        <div class="field"><label>الجهة</label><input id="eTarget"></div>
+        <div class="field"><label>اسم المصروف</label><input id="eName"></div>
+        <div class="field"><label>القيمة</label><input id="eValue" type="number" step="0.01"></div>
+        <div class="field" style="grid-column:span 2"><label>ملاحظات</label><input id="eNotes"></div>
+      </div>
+      <div class="btns"><button class="primary" id="addExpense">إضافة مصروف</button><button class="danger" id="deleteExpense">حذف المحدد</button></div>
+      <table><thead><tr><th>#</th><th>التاريخ</th><th>النوع</th><th>الجهة</th><th>الاسم</th><th>القيمة</th></tr></thead><tbody id="expensesBody"></tbody></table>
+    </div></section>
+
+    <section id="people" class="view"><div class="section">
+      <h2>مصروف الأشخاص</h2>
+      <div class="grid">
+        <div class="field"><label>التاريخ</label><input id="pDate" type="date"></div>
+        <div class="field"><label>الشخص</label><select id="pPerson"><option value="Imam">Imam</option><option value="محمد">محمد</option><option value="روئ">روئ</option><option value="أمنية">أمنية</option></select></div>
+        <div class="field"><label>القيمة</label><input id="pValue" type="number" step="0.01"></div>
+        <div class="field" style="grid-column:span 2"><label>ملاحظات</label><input id="pNotes"></div>
+      </div>
+      <div class="btns"><button class="primary" id="addPersonExp">إضافة</button><button class="danger" id="deletePersonExp">حذف المحدد</button></div>
+      <table><thead><tr><th>#</th><th>التاريخ</th><th>الشخص</th><th>القيمة</th><th>ملاحظات</th></tr></thead><tbody id="peopleBody"></tbody></table>
+    </div></section>
+
+    <section id="other" class="view"><div class="section">
+      <h2>حسابات أخرى</h2>
+      <div class="grid">
+        <div class="field"><label>التاريخ</label><input id="oDate" type="date"></div>
+        <div class="field"><label>اسم الحساب</label><input id="oName"></div>
+        <div class="field"><label>القيمة</label><input id="oValue" type="number" step="0.01"></div>
+        <div class="field" style="grid-column:span 2"><label>ملاحظات</label><input id="oNotes"></div>
+      </div>
+      <div class="btns"><button class="primary" id="addOther">إضافة</button><button class="danger" id="deleteOther">حذف المحدد</button></div>
+      <table><thead><tr><th>#</th><th>التاريخ</th><th>اسم الحساب</th><th>القيمة</th><th>ملاحظات</th></tr></thead><tbody id="otherBody"></tbody></table>
+    </div></section>
+
+    <section id="salaries" class="view"><div class="section">
+      <h2>الرواتب</h2>
+      <div class="grid">
+        <div class="field"><label>اسم الموظف</label><input id="salName"></div>
+        <div class="field"><label>الراتب الكامل</label><input id="salTotal" type="number" step="0.01"></div>
+        <div class="field"><label>المسحوب</label><input id="salTaken" type="number" step="0.01"></div>
+        <div class="field"><label>التاريخ</label><input id="salDate" type="date"></div>
+        <div class="field" style="grid-column:span 2"><label>ملاحظات</label><input id="salNotes"></div>
+      </div>
+      <div class="btns"><button class="primary" id="addSalary">إضافة / تحديث موظف</button><button class="danger" id="deleteSalary">حذف المحدد</button></div>
+      <table><thead><tr><th>#</th><th>الاسم</th><th>التاريخ</th><th>الراتب</th><th>المسحوب</th><th>الباقي</th><th>ملاحظات</th></tr></thead><tbody id="salariesBody"></tbody></table>
+    </div></section>
+
+    <section id="settings" class="view"><div class="section">
+      <h2>لوحة الإعدادات</h2>
+      <div class="muted">تم إلغاء تسجيل الدخول نهائيًا في هذه النسخة.</div>
+      <div class="section">
+        <h2>إدارة الحقول المخصصة</h2>
+        <div class="grid">
+          <div class="field"><label>اسم الخانة الجديدة</label><input id="cfLabel"></div>
+          <div class="field"><label>مكان ظهورها</label><select id="cfSection"><option value="sales">المبيعات</option><option value="inventory">الأصناف</option><option value="expenses">المصاريف</option><option value="salaries">الرواتب</option><option value="other">حسابات أخرى</option></select></div>
+        </div>
+        <div class="btns"><button class="primary" id="addCustomField">إضافة خانة مخصصة</button><button class="secondary" id="resetCustomFields">إعادة ضبط الخانات المخصصة</button></div>
+        <table><thead><tr><th>#</th><th>اسم الخانة</th><th>القسم</th><th>حذف</th></tr></thead><tbody id="customFieldsBody"></tbody></table>
+      </div>
+    </div></section>
+
+    <section id="tools" class="view">
+      <div class="section">
+        <h2>آلة حاسبة</h2>
+        <div class="grid">
+          <div class="field" style="grid-column:span 2"><label>العملية الحسابية</label><input id="calcInput"></div>
+          <div class="field"><label>النتيجة</label><input id="calcResult" readonly></div>
+        </div>
+        <div class="btns"><button class="primary" id="calcBtn">احسب</button><button class="secondary" id="clearCalc">مسح</button></div>
+      </div>
+      <div class="section">
+        <h2>نسخ / لصق البيانات</h2>
+        <div class="field"><label>منطقة النسخ واللصق</label><textarea id="jsonArea" style="min-height:220px"></textarea></div>
+        <div class="btns"><button class="secondary" id="fillJsonArea">عرض البيانات هنا</button><button class="warn" id="copyArea">نسخ النص</button><button class="primary" id="importFromArea">استيراد من النص</button></div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+const KEY='soufi_print_accounting_no_login';
+const state = JSON.parse(localStorage.getItem(KEY) || '{"products":[],"sales":[],"expenses":[],"personExpenses":[],"otherAccounts":[],"salaries":[],"customFields":[]}');
+let sel = {product:null,sale:null,expense:null,person:null,other:null,salary:null};
+
+function save(){ localStorage.setItem(KEY, JSON.stringify(state)); document.getElementById('saveStatus').textContent='تم حفظ البيانات'; }
+function money(v){ return Number(v||0).toFixed(2); }
+
+function normalizeText(s){
+  return (s||'').toString().toLowerCase().trim();
+}
+function compareNames(a,b){
+  return normalizeText(a.name).localeCompare(normalizeText(b.name), ['ar','en'], {numeric:true, sensitivity:'base'});
+}
+function setImagePreview(src){
+  const preview = document.getElementById('iImagePreview');
+  const nameBox = document.getElementById('iImageName');
+  if(!preview) return;
+  if(src){
+    preview.src = src;
+    preview.style.display = 'block';
+    if(nameBox) nameBox.textContent='تم تجهيز الصورة';
+  }else{
+    preview.removeAttribute('src');
+    preview.style.display = 'none';
+    if(nameBox) nameBox.textContent='لم يتم اختيار صورة';
+  }
+}
+function readSelectedImage(callback){
+  const fileInput = document.getElementById('iImage');
+  if(fileInput && fileInput.files && fileInput.files[0]){
+    const reader = new FileReader();
+    reader.onload = e => callback(e.target.result || '');
+    reader.readAsDataURL(fileInput.files[0]);
+  }else{
+    callback(null);
+  }
+}
+function todayStr(){ const d=new Date(); return d.toISOString().slice(0,10); }
+function startOfWeek(dateStr){ const d=new Date(dateStr+'T00:00:00'); const day=(d.getDay()+6)%7; d.setDate(d.getDate()-day); return d.toISOString().slice(0,10); }
+function soldQtyForProduct(name){ return state.sales.filter(s=>s.product===name).reduce((a,b)=>a+Number(b.qty),0); }
+function remainingQty(p){ return Number(p.qty)-soldQtyForProduct(p.name); }
+function inventoryValueFn(){ return state.products.reduce((a,p)=>a+(remainingQty(p)*Number(p.cost||0)),0); }
+function salesTotalFn(){ return state.sales.reduce((a,s)=>a+Number(s.total),0); }
+function cogsTotal(){ return state.sales.reduce((a,s)=>a+Number(s.costTotal),0); }
+function grossProfit(){ return salesTotalFn()-cogsTotal(); }
+function salariesTakenTotal(){ return state.salaries.reduce((a,s)=>a+Number(s.taken||0),0); }
+function expensesTotal(){ return state.expenses.reduce((a,e)=>a+Number(e.value),0)+state.personExpenses.reduce((a,e)=>a+Number(e.value),0)+salariesTakenTotal(); }
+function netProfit(){ return grossProfit()-expensesTotal(); }
+
+document.querySelectorAll('.tab').forEach(btn=>{
+  btn.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active'); document.getElementById(btn.dataset.view).classList.add('active');
+  }
+});
+
+function customFieldsFor(section){ return (state.customFields||[]).filter(x=>x.section===section); }
+function renderCustomFields(section, containerId){
+  const wrap=document.getElementById(containerId); if(!wrap) return; wrap.innerHTML='';
+  customFieldsFor(section).forEach((f,idx)=>{
+    const d=document.createElement('div');
+    d.className='field';
+    d.innerHTML=`<label>${f.label}</label><input id="${section}_cf_${idx}" placeholder="${f.label}">`;
+    wrap.appendChild(d);
+  });
+}
+function getCustomFieldValues(section){
+  const obj={}; customFieldsFor(section).forEach((f,idx)=>{ const el=document.getElementById(`${section}_cf_${idx}`); obj[f.label]=el?el.value:''; }); return obj;
+}
+function setCustomFieldValues(section, values){
+  customFieldsFor(section).forEach((f,idx)=>{ const el=document.getElementById(`${section}_cf_${idx}`); if(el) el.value=(values&&values[f.label])?values[f.label]:''; });
+}
+function clearCustomFieldValues(section){
+  customFieldsFor(section).forEach((f,idx)=>{ const el=document.getElementById(`${section}_cf_${idx}`); if(el) el.value=''; });
+}
+function refreshCustomFieldTable(){
+  customFieldsBody.innerHTML='';
+  (state.customFields||[]).forEach((f,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${i+1}</td><td>${f.label}</td><td>${f.section}</td><td><button class="danger" onclick="deleteCustomField(${i})">حذف</button></td>`;
+    customFieldsBody.appendChild(tr);
+  });
+}
+function deleteCustomField(i){ state.customFields.splice(i,1); buildDynamicRows(); refreshAll(); }
+function buildDynamicRows(){
+  const mappings = [['inventory','inventoryCustomRow'],['sales','salesCustomRow'],['expenses','expensesCustomRow'],['salaries','salariesCustomRow'],['other','otherCustomRow']];
+  mappings.forEach(([section,rowId])=>{
+    let row=document.getElementById(rowId);
+    if(!row){
+      row=document.createElement('div'); row.id=rowId; row.className='grid';
+      if(section==='inventory') iNotes.closest('.grid').after(row);
+      if(section==='sales') sNotes.closest('.grid').after(row);
+      if(section==='expenses') eNotes.closest('.grid').after(row);
+      if(section==='salaries') salNotes.closest('.grid').after(row);
+      if(section==='other') oNotes.closest('.grid').after(row);
+    }
+    renderCustomFields(section,rowId);
+  });
+}
+
+function refreshDashboard(){
+  dbSales.textContent=money(salesTotalFn()); dbCogs.textContent=money(cogsTotal()); dbGross.textContent=money(grossProfit());
+  dbExpenses.textContent=money(expensesTotal()); dbNet.textContent=money(netProfit()); dbProducts.textContent=state.products.length; dbSalesCount.textContent=state.sales.length; dbStock.textContent=state.products.reduce((a,p)=>a+remainingQty(p),0);
+  const branches=['ابي سمراء','الجميزات'];
+  branchSummaryBody.innerHTML=branches.map(br=>{
+    const sales=state.sales.filter(s=>s.branch===br).reduce((a,b)=>a+Number(b.total),0);
+    const branchExpenses=state.expenses.filter(e=>(e.type==='فرع أبي سمراء'&&br==='ابي سمراء')||(e.type==='فرع الجميزات'&&br==='الجميزات')).reduce((a,b)=>a+Number(b.value),0);
+    return `<tr><td>${br}</td><td>${money(sales)}</td><td>${money(branchExpenses)}</td><td>${money(sales-branchExpenses)}</td></tr>`;
+  }).join('');
+  quickSummaryBody.innerHTML=`
+    <tr><td>إجمالي الحسابات الأخرى</td><td>${money(state.otherAccounts.reduce((a,b)=>a+Number(b.value),0))}</td></tr>
+    <tr><td>إجمالي مصروف الأشخاص</td><td>${money(state.personExpenses.reduce((a,b)=>a+Number(b.value),0))}</td></tr>
+    <tr><td>إجمالي مصروف السيارات</td><td>${money(state.expenses.filter(e=>e.type==='سيارات').reduce((a,b)=>a+Number(b.value),0))}</td></tr>
+    <tr><td>القيمة الإجمالية للمخزون الحالي</td><td>${money(inventoryValueFn())}</td></tr>
+    <tr><td>إجمالي شراء البضاعة</td><td>${money(state.expenses.filter(e=>e.type==='شراء بضاعة').reduce((a,b)=>a+Number(b.value),0))}</td></tr>
+    <tr><td>إجمالي مولد كهرباء + مازوت</td><td>${money(state.expenses.filter(e=>e.type==='مولد كهرباء'||e.type==='مازوت').reduce((a,b)=>a+Number(b.value),0))}</td></tr>
+  `;
+}
+
+function normalizeText(s){
+  return (s||'').toString().toLowerCase().trim();
+}
+function compareNames(a,b){
+  return normalizeText(a.name).localeCompare(normalizeText(b.name), ['ar','en'], {numeric:true, sensitivity:'base'});
+}
+
+function refreshInventory(){
+  inventoryBody.innerHTML='';
+  const search = normalizeText((document.getElementById('inventorySearch')||{}).value || '');
+  const sortedProducts = [...state.products].sort(compareNames);
+  sortedProducts.forEach((p,idx)=>{
+    if(search && !normalizeText(p.name).includes(search)) return;
+    const originalIndex = state.products.indexOf(p);
+    const sold=soldQtyForProduct(p.name), rem=remainingQty(p);
+    const tr=document.createElement('tr');
+    if(sel.product===originalIndex) tr.classList.add('selected');
+    const imgCell = p.image ? `<img class="thumb" src="${p.image}" alt="${p.name}">` : '<span class="muted-sm">—</span>';
+    tr.innerHTML=`<td>${idx+1}</td><td>${imgCell}</td><td>${p.name}</td><td>${money(p.cost)}</td><td>${money(p.retail)}</td><td>${money(p.wholesale)}</td><td>${p.sizes||''}</td><td>${p.qty}</td><td>${sold}</td><td>${rem}</td>`;
+    tr.onclick=()=>{
+      sel.product=originalIndex;
+      iName.value=p.name; iCost.value=p.cost; iRetail.value=p.retail; iWholesale.value=p.wholesale; iQty.value=p.qty; iSizes.value=p.sizes||''; iNotes.value=p.notes||'';
+      setCustomFieldValues('inventory', p.customFields);
+      setImagePreview(p.image || ''); if(document.getElementById('iImageName')) document.getElementById('iImageName').textContent = p.image ? 'هذه صورة المنتج الحالية' : 'لم يتم اختيار صورة';
+      refreshInventory();
+    };
+    inventoryBody.appendChild(tr);
+  });
+  inventoryValue.textContent='القيمة الإجمالية للمخزون: '+money(inventoryValueFn());
+  const salesSearch = normalizeText((document.getElementById('salesSearch')||{}).value || '');
+  const options = sortedProducts
+    .filter(p => !salesSearch || normalizeText(p.name).includes(salesSearch))
+    .map(p=>`<option value="${p.name}">${p.name}</option>`).join('');
+  sProduct.innerHTML='<option value="">اختر صنفًا</option>'+options;
+}
+
+
+
+function refreshSales(){
+  salesBody.innerHTML='';
+  const search = normalizeText((document.getElementById('salesSearch')||{}).value || '');
+  const sortedSales = [...state.sales].sort((a,b)=>normalizeText(a.product).localeCompare(normalizeText(b.product), ['ar','en'], {numeric:true, sensitivity:'base'}));
+  sortedSales.forEach((s,idx)=>{
+    if(search && !normalizeText(s.product).includes(search)) return;
+    const originalProduct = state.products.find(p => p.name === s.product);
+    const imgCell = originalProduct && originalProduct.image ? `<img class="thumb" src="${originalProduct.image}" alt="${s.product}">` : '<span class="muted-sm">—</span>';
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${idx+1}</td><td>${imgCell}</td><td>${s.date}</td><td>${s.branch}</td><td>${s.product}</td><td>${s.saleType}</td><td>${s.qty}</td><td>${money(s.unit)}</td><td>${money(s.total)}</td>`;
+    salesBody.appendChild(tr);
+  });
+  salesTotal.textContent='إجمالي المبيعات: '+money(salesTotalFn());
+}
+
+function refreshProfits(){
+  const now=todayStr(), w=startOfWeek(now), m=now.slice(0,7), y=now.slice(0,4);
+  const periods=[['اليوم',state.sales.filter(s=>s.date===now)],['الأسبوع',state.sales.filter(s=>s.date>=w&&s.date<=now)],['الشهر',state.sales.filter(s=>s.date.slice(0,7)===m)],['السنة',state.sales.filter(s=>s.date.slice(0,4)===y)],['كل المدة',state.sales]];
+  profitPeriodBody.innerHTML=periods.map(([label,list])=>`<tr><td>${label}</td><td>${money(list.reduce((a,b)=>a+Number(b.total),0))}</td><td>${money(list.reduce((a,b)=>a+Number(b.costTotal),0))}</td><td>${money(list.reduce((a,b)=>a+Number(b.profit),0))}</td></tr>`).join('');
+  const branches=['ابي سمراء','الجميزات'];
+  profitBranchBody.innerHTML=branches.map(br=>{
+    const list=state.sales.filter(s=>s.branch===br); const sales=list.reduce((a,b)=>a+Number(b.total),0), cost=list.reduce((a,b)=>a+Number(b.costTotal),0);
+    const exp=state.expenses.filter(e=>(e.type==='فرع أبي سمراء'&&br==='ابي سمراء')||(e.type==='فرع الجميزات'&&br==='الجميزات')).reduce((a,b)=>a+Number(b.value),0);
+    return `<tr><td>${br}</td><td>${money(sales)}</td><td>${money(cost)}</td><td>${money(exp)}</td><td>${money(sales-cost-exp)}</td></tr>`;
+  }).join('');
+  profitProductBody.innerHTML=state.products.map(p=>{
+    const list=state.sales.filter(s=>s.product===p.name);
+    return `<tr><td>${p.name}</td><td>${list.reduce((a,b)=>a+Number(b.qty),0)}</td><td>${money(list.reduce((a,b)=>a+Number(b.total),0))}</td><td>${money(list.reduce((a,b)=>a+Number(b.costTotal),0))}</td><td>${money(list.reduce((a,b)=>a+Number(b.profit),0))}</td></tr>`;
+  }).join('');
+}
+function renderBranchRows(branch,target){ const now=todayStr(), w=startOfWeek(now), m=now.slice(0,7), y=now.slice(0,4); const list=state.sales.filter(s=>s.branch===branch); target.innerHTML=`<tr><td>يومي</td><td>${money(list.filter(x=>x.date===now).reduce((a,b)=>a+Number(b.total),0))}</td></tr><tr><td>أسبوعي</td><td>${money(list.filter(x=>x.date>=w&&x.date<=now).reduce((a,b)=>a+Number(b.total),0))}</td></tr><tr><td>شهري</td><td>${money(list.filter(x=>x.date.slice(0,7)===m).reduce((a,b)=>a+Number(b.total),0))}</td></tr><tr><td>سنوي</td><td>${money(list.filter(x=>x.date.slice(0,4)===y).reduce((a,b)=>a+Number(b.total),0))}</td></tr>`; }
+function refreshBranches(){ renderBranchRows('ابي سمراء', abiIncomeBody); renderBranchRows('الجميزات', jamIncomeBody); }
+function refreshExpenses(){ expensesBody.innerHTML=''; state.expenses.forEach((e,i)=>{ const tr=document.createElement('tr'); if(sel.expense===i) tr.classList.add('selected'); tr.innerHTML=`<td>${i+1}</td><td>${e.date}</td><td>${e.type}</td><td>${e.target||''}</td><td>${e.name}</td><td>${money(e.value)}</td>`; tr.onclick=()=>{ sel.expense=i; eDate.value=e.date; eType.value=e.type; eTarget.value=e.target||''; eName.value=e.name; eValue.value=e.value; eNotes.value=e.notes||''; setCustomFieldValues('expenses', e.customFields); refreshExpenses(); }; expensesBody.appendChild(tr); }); }
+function refreshPeople(){ peopleBody.innerHTML=''; state.personExpenses.forEach((e,i)=>{ const tr=document.createElement('tr'); if(sel.person===i) tr.classList.add('selected'); tr.innerHTML=`<td>${i+1}</td><td>${e.date}</td><td>${e.person}</td><td>${money(e.value)}</td><td>${e.notes||''}</td>`; tr.onclick=()=>{ sel.person=i; refreshPeople(); }; peopleBody.appendChild(tr); }); }
+function refreshOther(){ otherBody.innerHTML=''; state.otherAccounts.forEach((e,i)=>{ const tr=document.createElement('tr'); if(sel.other===i) tr.classList.add('selected'); tr.innerHTML=`<td>${i+1}</td><td>${e.date}</td><td>${e.name}</td><td>${money(e.value)}</td><td>${e.notes||''}</td>`; tr.onclick=()=>{ sel.other=i; oDate.value=e.date; oName.value=e.name; oValue.value=e.value; oNotes.value=e.notes||''; setCustomFieldValues('other', e.customFields); refreshOther(); }; otherBody.appendChild(tr); }); }
+function refreshSalaries(){ salariesBody.innerHTML=''; state.salaries.forEach((s,i)=>{ const tr=document.createElement('tr'); if(sel.salary===i) tr.classList.add('selected'); tr.innerHTML=`<td>${i+1}</td><td>${s.name}</td><td>${s.date}</td><td>${money(s.total)}</td><td>${money(s.taken)}</td><td>${money(s.remaining)}</td><td>${s.notes||''}</td>`; tr.onclick=()=>{ sel.salary=i; salName.value=s.name; salTotal.value=s.total; salTaken.value=s.taken; salDate.value=s.date; salNotes.value=s.notes||''; setCustomFieldValues('salaries', s.customFields); refreshSalaries(); }; salariesBody.appendChild(tr); }); }
+
+function refreshAll(){ refreshDashboard(); refreshInventory(); refreshSales(); refreshProfits(); refreshBranches(); refreshExpenses(); refreshPeople(); refreshOther(); refreshSalaries(); refreshCustomFieldTable(); save(); }
+
+saveNow.onclick=()=>{ save(); alert('تم حفظ البيانات بنجاح'); };
+exportBtn.onclick=()=>{ save(); const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='soufi_print_accounting_no_login_backup.json'; a.click(); URL.revokeObjectURL(a.href); };
+importFile.addEventListener('change',e=>{ const file=e.target.files[0]; if(!file) return; const reader=new FileReader(); reader.onload=evt=>{ try{ const data=JSON.parse(evt.target.result); Object.assign(state, data); buildDynamicRows(); refreshAll(); alert('تم استيراد النسخة بنجاح'); }catch(err){ alert('ملف النسخة غير صحيح'); } }; reader.readAsText(file,'utf-8'); });
+copyBtn.onclick=async()=>{ try{ await navigator.clipboard.writeText(JSON.stringify(state,null,2)); alert('تم نسخ البيانات'); }catch{ alert('تعذر النسخ التلقائي'); } };
+pasteBtn.onclick=async()=>{ try{ const txt=await navigator.clipboard.readText(); const data=JSON.parse(txt); Object.assign(state,data); buildDynamicRows(); refreshAll(); alert('تم لصق البيانات'); }catch{ alert('تعذر اللصق أو البيانات غير صحيحة'); } };
+
+function clearInventoryFields(){ 
+  iName.value=''; iCost.value=''; iRetail.value=''; iWholesale.value=''; iQty.value=''; iSizes.value=''; iNotes.value=''; 
+  if(document.getElementById('iImage')) document.getElementById('iImage').value=''; 
+  if(document.getElementById('iImageName')) document.getElementById('iImageName').textContent='لم يتم اختيار صورة';
+  setImagePreview(''); clearCustomFieldValues('inventory'); sel.product=null; 
+}
+addItem.onclick=()=>{
+  if(!iName.value.trim()||!iCost.value||!iRetail.value||!iWholesale.value||!iQty.value) return alert('املأ الحقول الأساسية');
+  readSelectedImage((imageData)=>{
+    state.products.push({
+      name:iName.value.trim(),
+      cost:Number(iCost.value),
+      retail:Number(iRetail.value),
+      wholesale:Number(iWholesale.value),
+      qty:Number(iQty.value),
+      sizes:iSizes.value.trim(),
+      notes:iNotes.value.trim(),
+      image:imageData || '',
+      customFields:getCustomFieldValues('inventory')
+    });
+    clearInventoryFields();
+    refreshAll();
+  });
+};
+updateItem.onclick=()=>{
+  if(sel.product===null) return alert('حدد صنفًا أولًا');
+  const existingImage = state.products[sel.product].image || '';
+  readSelectedImage((imageData)=>{
+    state.products[sel.product]={
+      name:iName.value.trim(),
+      cost:Number(iCost.value||0),
+      retail:Number(iRetail.value||0),
+      wholesale:Number(iWholesale.value||0),
+      qty:Number(iQty.value||0),
+      sizes:iSizes.value.trim(),
+      notes:iNotes.value.trim(),
+      image:imageData===null ? existingImage : imageData,
+      customFields:getCustomFieldValues('inventory')
+    };
+    clearInventoryFields();
+    refreshAll();
+  });
+};
+deleteItem.onclick=()=>{ if(sel.product===null) return alert('حدد صنفًا أولًا'); state.products.splice(sel.product,1); clearInventoryFields(); refreshAll(); };
+
+function productByName(name){ return state.products.find(p=>p.name===name); }
+sType.onchange=()=>{ const p=productByName(sProduct.value); if(!p) return; if(sType.value==='مفرق') sUnit.value=p.retail; else if(sType.value==='جملة') sUnit.value=p.wholesale; };
+sProduct.onchange=()=>sType.onchange();
+addSale.onclick=()=>{ const p=productByName(sProduct.value); if(!p) return alert('اختر صنفًا'); const qty=Number(sQty.value), unit=Number(sUnit.value); if(!sDate.value||!qty||qty<=0||!unit) return alert('أدخل تاريخًا وكمية وسعر وحدة'); if(qty>remainingQty(p)) return alert('الكمية المطلوبة أكبر من المتبقي'); const total=qty*unit,costTotal=qty*Number(p.cost||0),profit=total-costTotal; state.sales.push({date:sDate.value,branch:sBranch.value,product:p.name,saleType:sType.value,qty,unit,total,costTotal,profit,customer:sCustomer.value.trim(),notes:sNotes.value.trim(),customFields:getCustomFieldValues('sales')}); sQty.value=''; sCustomer.value=''; sNotes.value=''; clearCustomFieldValues('sales'); sel.sale=null; refreshAll(); };
+deleteSale.onclick=()=>{ if(sel.sale===null) return alert('حدد عملية بيع أولًا'); state.sales.splice(sel.sale,1); sel.sale=null; refreshAll(); };
+
+addExpense.onclick=()=>{ if(!eDate.value||!eName.value.trim()||!eValue.value) return alert('املأ حقول المصروف'); state.expenses.push({date:eDate.value,type:eType.value,target:eTarget.value.trim(),name:eName.value.trim(),value:Number(eValue.value),notes:eNotes.value.trim(),customFields:getCustomFieldValues('expenses')}); eTarget.value=''; eName.value=''; eValue.value=''; eNotes.value=''; clearCustomFieldValues('expenses'); sel.expense=null; refreshAll(); };
+deleteExpense.onclick=()=>{ if(sel.expense===null) return alert('حدد مصروفًا أولًا'); state.expenses.splice(sel.expense,1); sel.expense=null; refreshAll(); };
+
+addPersonExp.onclick=()=>{ if(!pDate.value||!pValue.value) return alert('أدخل التاريخ والقيمة'); state.personExpenses.push({date:pDate.value,person:pPerson.value,value:Number(pValue.value),notes:pNotes.value.trim()}); pValue.value=''; pNotes.value=''; sel.person=null; refreshAll(); };
+deletePersonExp.onclick=()=>{ if(sel.person===null) return alert('حدد سطرًا أولًا'); state.personExpenses.splice(sel.person,1); sel.person=null; refreshAll(); };
+
+addOther.onclick=()=>{ if(!oDate.value||!oName.value.trim()||!oValue.value) return alert('أدخل البيانات'); state.otherAccounts.push({date:oDate.value,name:oName.value.trim(),value:Number(oValue.value),notes:oNotes.value.trim(),customFields:getCustomFieldValues('other')}); oName.value=''; oValue.value=''; oNotes.value=''; clearCustomFieldValues('other'); sel.other=null; refreshAll(); };
+deleteOther.onclick=()=>{ if(sel.other===null) return alert('حدد سطرًا أولًا'); state.otherAccounts.splice(sel.other,1); sel.other=null; refreshAll(); };
+
+function clearSalaryFields(){ salName.value=''; salTotal.value=''; salTaken.value=''; salDate.value=todayStr(); salNotes.value=''; clearCustomFieldValues('salaries'); sel.salary=null; }
+addSalary.onclick=()=>{ if(!salName.value.trim()||!salTotal.value) return alert('أدخل اسم الموظف والراتب'); const total=Number(salTotal.value), taken=Number(salTaken.value||0), remaining=total-taken; if(remaining<0) return alert('المسحوب أكبر من الراتب'); const existingIndex=state.salaries.findIndex(s=>s.name===salName.value.trim()); const record={name:salName.value.trim(),total,taken,remaining,date:salDate.value||todayStr(),notes:salNotes.value.trim(),customFields:getCustomFieldValues('salaries')}; if(existingIndex>=0&&sel.salary===null) state.salaries[existingIndex]=record; else if(sel.salary!==null) state.salaries[sel.salary]=record; else state.salaries.push(record); clearSalaryFields(); refreshAll(); };
+deleteSalary.onclick=()=>{ if(sel.salary===null) return alert('حدد موظفًا أولًا'); state.salaries.splice(sel.salary,1); clearSalaryFields(); refreshAll(); };
+
+addCustomField.onclick=()=>{ const label=cfLabel.value.trim(), section=cfSection.value; if(!label) return alert('أدخل اسم الخانة'); state.customFields.push({label,section}); cfLabel.value=''; buildDynamicRows(); refreshAll(); };
+resetCustomFields.onclick=()=>{ if(!confirm('سيتم حذف كل الخانات المخصصة الحالية من الواجهة.')) return; state.customFields=[]; buildDynamicRows(); refreshAll(); };
+
+calcBtn.onclick=()=>{ try{ const expr=(calcInput.value||'').replace(/[^0-9+\-*/(). ]/g,''); calcResult.value=Function('"use strict";return ('+expr+')')(); }catch{ calcResult.value='خطأ'; } };
+clearCalc.onclick=()=>{ calcInput.value=''; calcResult.value=''; };
+fillJsonArea.onclick=()=>{ jsonArea.value=JSON.stringify(state,null,2); };
+copyArea.onclick=()=>{ jsonArea.select(); document.execCommand('copy'); alert('تم نسخ النص'); };
+importFromArea.onclick=()=>{ try{ const data=JSON.parse(jsonArea.value); Object.assign(state,data); buildDynamicRows(); refreshAll(); alert('تم استيراد البيانات من النص'); }catch{ alert('النص غير صحيح'); } };
+
+function buildDynamicRows(){
+  const mappings=[['inventory','inventoryCustomRow'],['sales','salesCustomRow'],['expenses','expensesCustomRow'],['salaries','salariesCustomRow'],['other','otherCustomRow']];
+  mappings.forEach(([section,rowId])=>{
+    let row=document.getElementById(rowId);
+    if(!row){
+      row=document.createElement('div'); row.id=rowId; row.className='grid';
+      if(section==='inventory') iNotes.closest('.grid').after(row);
+      if(section==='sales') sNotes.closest('.grid').after(row);
+      if(section==='expenses') eNotes.closest('.grid').after(row);
+      if(section==='salaries') salNotes.closest('.grid').after(row);
+      if(section==='other') oNotes.closest('.grid').after(row);
+    }
+    renderCustomFields(section,rowId);
+  });
+}
+
+['sDate','eDate','pDate','oDate','salDate'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=todayStr(); });
+if(document.getElementById('inventorySearch')) document.getElementById('inventorySearch').addEventListener('input', refreshInventory);
+if(document.getElementById('iImage')) document.getElementById('iImage').addEventListener('change', ()=>{
+  const fileInput = document.getElementById('iImage');
+  const nameBox = document.getElementById('iImageName');
+  if(nameBox && fileInput.files && fileInput.files[0]) nameBox.textContent = fileInput.files[0].name;
+  readSelectedImage((imageData)=>{ if(imageData) setImagePreview(imageData); });
+});
+if(document.getElementById('salesSearch')) document.getElementById('salesSearch').addEventListener('input', ()=>{ refreshInventory(); refreshSales(); });
+buildDynamicRows();
+refreshAll();
+</script>
+</body>
+</html>
